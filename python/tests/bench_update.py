@@ -2,6 +2,8 @@ import pathlib
 import sys
 import enum
 import time
+import asyncio
+import threading
 
 import deglib
 from deglib.utils import get_current_rss_mb, StopWatch
@@ -129,11 +131,13 @@ def test_graph_fresh_update(
 
     # start the build process
     stopwatch = StopWatch()
-    builder.build(improvement_callback, False)
-    duration = stopwatch.get_elapsed_time_micro() / 1000000
-    print("Actual memory usage: {} Mb after building the graph in {:.4} secs".format(
-        get_current_rss_mb(), float(duration)
-    ))
+    # builder.build(improvement_callback, False)
+    async def build_infinite():
+        await builder.build(None, True)
+    def build_wrapper():
+        asyncio.run(build_infinite())
+    _thread = threading.Thread(target=build_wrapper, args=())
+    _thread.start()
     print("Starting to test sliding window update")
     rolling_update_gt = deglib.repository.get_rolling_update_gt(rolling_update_gt_file)
     def test_rolling_update(batch_id):
@@ -142,11 +146,15 @@ def test_graph_fresh_update(
     test_rolling_update(0)
     for batch_id in range(100):
         print("Batch ", batch_id)
+        duration = stopwatch.get_elapsed_time_micro() / 1000000
+        print("Actual memory usage: {} Mb after building the graph in {:.4} secs".format(
+            get_current_rss_mb(), float(duration)
+        ))
         for j in range(batch_size):
             builder.remove_entry(batch_id * 100 + j)
             add_entry(batch_id * 100 + j + base_size)
         test_rolling_update(batch_id + 1)
-        
+    builder.stop()
 
     # store the graph
     # graph.save_graph(graph_file)
