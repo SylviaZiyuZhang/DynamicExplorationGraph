@@ -242,7 +242,23 @@ namespace deglib {
             }
         };
 
+        class CosineFloat {
+        public:
+            inline static float compare(const void *pVect1v, const void *pVect2v, const void *qty_ptr)
+            {
+                float *a = (float *) pVect1v;
+                float *b = (float *) pVect2v;
+                size_t size = *((size_t *)qty_ptr);
 
+                float mag_a = 0, mag_b = 0, prod = 0;
+                for (uint32_t i = 0; i < size; i++) {
+                    mag_a += a[i] * a[i];
+                    mag_b += b[i] * b[i];
+                    prod += a[i] * b[i];
+                }
+                return 1.0f - (prod / (sqrt(mag_a) * sqrt(mag_b)));
+            }
+        };
 
         class InnerProductFloat {
         public:
@@ -436,7 +452,8 @@ namespace deglib {
 
     enum class Metric {
         L2 = 1,
-        InnerProduct = 2
+        InnerProduct = 2,
+        Cosine = 3,
     };
 
     template <typename MTYPE>
@@ -473,7 +490,7 @@ namespace deglib {
                         distfunc = deglib::distances::L2Float4ExtResiduals::compare;
                 #endif
             }
-            else 
+            else if (metric == deglib::Metric::InnerProduct)
             {
                 #if defined(USE_SSE) || defined(USE_AVX) || defined(USE_AVX512)
                     if (dim % 16 == 0)
@@ -489,6 +506,9 @@ namespace deglib {
                 #else
                     distfunc = deglib::distances::InnerProductFloat::compare;
                 #endif
+            } else if (metric == deglib::Metric::Cosine)
+            {
+                distfunc = deglib::distances::CosineFloat::compare;
             }
 
             // TODO add cosine but convert to a distance = 2 - (cosine + 1)

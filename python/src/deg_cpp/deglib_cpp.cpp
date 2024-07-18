@@ -52,7 +52,8 @@ PYBIND11_MODULE(deglib_cpp, m) {
   // distances
   py::enum_<deglib::Metric>(m, "Metric")
       .value("L2", deglib::Metric::L2)
-      .value("InnerProduct", deglib::Metric::InnerProduct);
+      .value("InnerProduct", deglib::Metric::InnerProduct)
+      .value("Cosine", deglib::Metric::Cosine);
 
   py::class_<deglib::FloatSpace>(m, "FloatSpace")
       .def(py::init<const size_t, const deglib::Metric>())

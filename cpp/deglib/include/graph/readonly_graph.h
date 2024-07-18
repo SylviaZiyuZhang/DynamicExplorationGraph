@@ -99,6 +99,11 @@ class ReadOnlyGraph : public deglib::search::SearchGraph {
   }
 
   template <bool use_max_distance_count = false>
+  inline static deglib::search::ResultSet searchCosine(const ReadOnlyGraph& graph, const std::vector<uint32_t>& entry_vertex_indices, const std::byte* query, const float eps, const uint32_t k, const uint32_t max_distance_computation_count = 0) {
+    return graph.searchImpl<deglib::distances::CosineFloat, use_max_distance_count>(entry_vertex_indices, query, eps, k, max_distance_computation_count);
+  }
+
+  template <bool use_max_distance_count = false>
   inline static SEARCHFUNC getSearchFunction(const deglib::FloatSpace& feature_space) {
     const auto dim = feature_space.dim();
     const auto metric = feature_space.metric();
@@ -130,6 +135,9 @@ class ReadOnlyGraph : public deglib::search::SearchGraph {
         return deglib::graph::ReadOnlyGraph::searchInnerProductExt4Residual<use_max_distance_count>;
       else
         return deglib::graph::ReadOnlyGraph::searchInnerProduct<use_max_distance_count>;
+    } else if (metric == deglib::Metric::Cosine)
+    {
+      return deglib::graph::ReadOnlyGraph::searchCosine<use_max_distance_count>;
     }
     return deglib::graph::ReadOnlyGraph::searchL2<use_max_distance_count>;
   }
@@ -185,6 +193,10 @@ class ReadOnlyGraph : public deglib::search::SearchGraph {
     return graph.exploreImpl<deglib::distances::InnerProductFloat4ExtResiduals>(entry_vertex_index, k, max_distance_computation_count);
   }
 
+  inline static deglib::search::ResultSet exploreCosine(const ReadOnlyGraph& graph, const uint32_t entry_vertex_index, const uint32_t k, const uint32_t max_distance_computation_count = 0) {
+    return graph.exploreImpl<deglib::distances::CosineFloat>(entry_vertex_index, k, max_distance_computation_count);
+  }
+
   inline static EXPLOREFUNC getExploreFunction(const deglib::FloatSpace& feature_space) {
     const auto dim = feature_space.dim();
     const auto metric = feature_space.metric();
@@ -216,6 +228,9 @@ class ReadOnlyGraph : public deglib::search::SearchGraph {
         return deglib::graph::ReadOnlyGraph::exploreInnerProductExt4Residual;
       else
         return deglib::graph::ReadOnlyGraph::exploreInnerProduct;
+    } else if (metric == deglib::Metric::Cosine)
+    {
+      return deglib::graph::ReadOnlyGraph::exploreCosine;
     }
 
     return deglib::graph::ReadOnlyGraph::exploreL2;      

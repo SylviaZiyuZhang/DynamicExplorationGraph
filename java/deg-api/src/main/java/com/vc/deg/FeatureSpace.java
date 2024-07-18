@@ -17,7 +17,7 @@ public interface FeatureSpace {
 	 * @author Nico Hezel
 	 */
 	public static enum Metric {
-		L2(1), InnerProduct(2), Manhatten(10);
+		L2(1), InnerProduct(2), Cosine(3), Manhatten(10);
 		
 		protected int id;
 		

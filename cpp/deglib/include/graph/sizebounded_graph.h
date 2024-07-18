@@ -100,6 +100,11 @@ class SizeBoundedGraph : public deglib::graph::MutableGraph {
   }
 
   template <bool use_max_distance_count = false>
+  inline static deglib::search::ResultSet searchCosine(const SizeBoundedGraph& graph, const std::vector<uint32_t>& entry_vertex_indices, const std::byte* query, const float eps, const uint32_t k, const uint32_t max_distance_computation_count = 0) {
+    return graph.searchImpl<deglib::distances::CosineFloat, use_max_distance_count>(entry_vertex_indices, query, eps, k, max_distance_computation_count);
+  }
+
+  template <bool use_max_distance_count = false>
   inline static SEARCHFUNC getSearchFunction(const deglib::FloatSpace& feature_space) {
     const auto dim = feature_space.dim();
     const auto metric = feature_space.metric();
@@ -131,6 +136,8 @@ class SizeBoundedGraph : public deglib::graph::MutableGraph {
         return deglib::graph::SizeBoundedGraph::searchInnerProductExt4Residual<use_max_distance_count>;
       else
         return deglib::graph::SizeBoundedGraph::searchInnerProduct<use_max_distance_count>;
+    } else if (metric == deglib::Metric::Cosine){
+      return deglib::graph::SizeBoundedGraph::searchCosine<use_max_distance_count>;
     }
     return deglib::graph::SizeBoundedGraph::searchL2<use_max_distance_count>;
   }
@@ -186,6 +193,10 @@ class SizeBoundedGraph : public deglib::graph::MutableGraph {
     return graph.exploreImpl<deglib::distances::InnerProductFloat4ExtResiduals>(entry_vertex_index, k, max_distance_computation_count);
   }
 
+  inline static deglib::search::ResultSet exploreCosine(const SizeBoundedGraph& graph, const uint32_t entry_vertex_index, const uint32_t k, const uint32_t max_distance_computation_count = 0) {
+    return graph.exploreImpl<deglib::distances::CosineFloat>(entry_vertex_index, k, max_distance_computation_count);
+  }
+
   inline static EXPLOREFUNC getExploreFunction(const deglib::FloatSpace& feature_space) {
     const auto dim = feature_space.dim();
     const auto metric = feature_space.metric();
@@ -202,7 +213,7 @@ class SizeBoundedGraph : public deglib::graph::MutableGraph {
       else if (dim > 4)
         return deglib::graph::SizeBoundedGraph::exploreL2Ext4Residual;
     }
-    else if(metric == deglib::Metric::InnerProduct)
+    else if (metric == deglib::Metric::InnerProduct)
     {
 
       if (dim % 16 == 0)
@@ -217,6 +228,9 @@ class SizeBoundedGraph : public deglib::graph::MutableGraph {
         return deglib::graph::SizeBoundedGraph::exploreInnerProductExt4Residual;
       else
         return deglib::graph::SizeBoundedGraph::exploreInnerProduct;
+    } else if (metric == deglib::Metric::Cosine)
+    {
+      return deglib::graph::SizeBoundedGraph::exploreCosine;
     }
 
     return deglib::graph::SizeBoundedGraph::exploreL2;      

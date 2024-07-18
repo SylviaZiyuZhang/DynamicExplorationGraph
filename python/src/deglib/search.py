@@ -1,4 +1,4 @@
-from typing import Self, Iterator
+from typing_extensions import Self, Iterator
 
 import deglib_cpp
 
