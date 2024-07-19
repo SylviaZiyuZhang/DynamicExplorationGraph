@@ -80,7 +80,7 @@ class TestGraphs:
     @pytest.mark.parametrize('graph_getter', [get_read_only_graph, get_size_bounded_graph])
     def test_has_path(self, graph_getter: Callable[[Self], deglib.graph.SearchGraph]):
         graph = graph_getter(self)
-        entry_vertex_indices = graph.get_entry_vertex_indices()
+        entry_vertex_indices = graph.get_entry_vertex_indices(0)
         path = graph.has_path(entry_vertex_indices, 70, 0.001, 10)
         for p in path:
             assert isinstance(p, deglib.search.ObjectDistance)

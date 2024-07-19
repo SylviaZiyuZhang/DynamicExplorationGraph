@@ -1,4 +1,4 @@
-from typing import List, Set
+from typing import List, Set, Tuple
 
 import numpy as np
 
@@ -36,11 +36,11 @@ def get_ground_truth(
 
 def test_graph_anns(
         graph: deglib.graph.ReadOnlyGraph, query_repository: np.ndarray,
-        ground_truth: np.ndarray, repeat: int, k: int
-):
+        ground_truth: np.ndarray, repeat: int, k: int, start_label: int=0, eps_parameter: float=0.2
+) -> Tuple[float, float]: # start_label has to exist in the graph
     # entry_vertex_id = get_near_avg_entry_index(graph)
 
-    entry_vertex_indices = graph.get_entry_vertex_indices()
+    entry_vertex_indices = graph.get_entry_vertex_indices(start_label)
     print("internal id {}".format(graph.get_internal_index(entry_vertex_indices[0])))
 
     # test ground truth
@@ -53,7 +53,9 @@ def test_graph_anns(
     # eps_parameter = [0.05, 0.06, 0.07, 0.08, 0.1, 0.12, 0.18, 0.2]                    # enron
     # eps_parameter = [0.01, 0.05, 0.1, 0.2, 0.4, 0.8]                                  # UQ-V
     # eps_parameter = [0.00, 0.03, 0.05, 0.07, 0.09, 0.12, 0.2, 0.3]                    # audio
-    eps_parameter = [0.01, 0.05, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2]                    # SIFT1M k=100
+    # eps_parameter = [0.01, 0.05, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2]                    # SIFT1M k=100
+    # eps_parameter = [0.5]
+    eps_parameter = 0.5
     # eps_parameter = [0.01, 0.05, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2]                    # SIFT1M k=100
     # eps_parameter = [100, 140, 171, 206, 249, 500, 1000]                              # greedy search SIFT1M k=100
     # eps_parameter = [0.00, 0.01, 0.05, 0.1, 0.15, 0.2]                                # SIFT1M k=1
@@ -62,16 +64,12 @@ def test_graph_anns(
     # eps_parameter = [0.12, 0.14, 0.16, 0.18, 0.2, 0.3, 0.4]                           # GloVe
     # eps_parameter = [0.01, 0.06, 0.07, 0.08, 0.09, 0.11, 0.13, 0.15, 0.20]            # GloVe DEG90
 
-    for eps in eps_parameter:
-        stopwatch = deglib.utils.StopWatch()
-        recall = 0.0
-        for i in range(repeat):
-            recall = test_approx_anns(graph, entry_vertex_indices, query_repository, answer, eps, k)
-        time_us_per_query = (stopwatch.get_elapsed_time_micro() // query_repository.shape[0]) // repeat
-
-        print("eps {:.2f}    recall {:.5f}    time_us_per_query {:4} us".format(eps, recall, time_us_per_query))
-        if recall > 1.0:
-            break
+    stopwatch = deglib.utils.StopWatch()
+    recall = test_approx_anns(graph, entry_vertex_indices, query_repository, answer, eps_parameter, k)
+    time_us_per_query = (stopwatch.get_elapsed_time_micro() // query_repository.shape[0])
+    print("eps {:.2f}    recall {:.5f}    time_us_per_query {:4} us".format(eps_parameter , recall, time_us_per_query))
+    
+    return recall, time_us_per_query
 
 
 def test_approx_anns(

@@ -4,10 +4,15 @@ import enum
 import time
 import asyncio
 import threading
+import json
 
 import deglib
 from deglib.utils import get_current_rss_mb, StopWatch
 
+
+dataset_name = "sift"
+experiment_size=5000
+dataset_full_name = "sift-128-euclidean"
 
 class DataStreamType(enum.Enum):
     AddAll = enum.auto()
@@ -34,20 +39,18 @@ def main():
     print("Actual memory usage: {} Mb".format(get_current_rss_mb()))
 
     data_path: pathlib.Path = pathlib.Path("/home/ubuntu/data/new_filtered_ann_datasets/")
-    gt_path: pathlib.Path = pathlib.Path("/home/ubuntu/data/ann_rolling_update_gt/redcaps_cosine_5000_100/")
+    gt_path: pathlib.Path = pathlib.Path("/home/ubuntu/data/ann_rolling_update_gt/sift_l2_5000_100/")
 
-    dataset_name = "redcaps"
-    dataset_full_name = "redcaps-512-angular"
     repository_file = data_path / dataset_name / (dataset_full_name+".hdf5")
-    metric = "cosine"
-    gt_suffix = "out.hdf5"
+    metric = "l2"
+    gt_suffix = "sift_5000_rolling_update_gt.hdf5"
     rolling_update_gt_file = gt_path / gt_suffix
-    test_graph_fresh_update(repository_file, rolling_update_gt_file, d=20, k_ext=40, eps_ext=0.3, k_opt=20, eps_opt=0.001, i_opt=5)
+    test_graph_fresh_update(repository_file, rolling_update_gt_file, d=20, k_ext=40, eps_ext=0.3, k_opt=20, eps_opt=0.001, i_opt=5, eps_parameter=0.5)
 
 
 def test_graph_fresh_update(
         repository_file: pathlib.Path, rolling_update_gt_file: pathlib.Path, d: int, k_ext: int,
-        eps_ext: float, k_opt: int, eps_opt: float, i_opt: int
+        eps_ext: float, k_opt: int, eps_opt: float, i_opt: int, eps_parameter: float=0.5
 ):
     rnd = deglib.Mt19937()  # default 7
     metric = deglib.Metric.Cosine  # default metric
@@ -74,6 +77,7 @@ def test_graph_fresh_update(
     builder = deglib.builder.EvenRegularGraphBuilder(
         graph, rnd, k_ext, eps_ext, k_opt, eps_opt, i_opt, swap_tries, additional_swap_tries
     )
+    start = time.perf_counter()
 
     # provide all features to the graph builder at once. In an online system this will be called multiple times
     base_size = repository.shape[0]
@@ -86,6 +90,7 @@ def test_graph_fresh_update(
 
     for i in range(base_size):
         add_entry(i)
+    time.sleep(30)
 
     print("Actual memory usage: {} Mb after setup graph builder (including input)".format(get_current_rss_mb()))
     
@@ -93,8 +98,6 @@ def test_graph_fresh_update(
     # check the integrity of the graph during the graph build process
     log_after = 100000
 
-    print("Start building")
-    start = time.perf_counter()
     duration = 0
 
     def improvement_callback(status):
@@ -131,30 +134,51 @@ def test_graph_fresh_update(
 
     # start the build process
     stopwatch = StopWatch()
-    # builder.build(improvement_callback, False)
+    """
+    builder.build(improvement_callback, False)
     async def build_infinite():
         await builder.build(None, True)
     def build_wrapper():
         asyncio.run(build_infinite())
-    _thread = threading.Thread(target=build_wrapper, args=())
-    _thread.start()
+    """
+    #_thread = threading.Thread(target=build_wrapper, args=())
+    #_thread.start()
     print("Starting to test sliding window update")
     rolling_update_gt = deglib.repository.get_rolling_update_gt(rolling_update_gt_file)
-    def test_rolling_update(batch_id):
-        deglib.benchmark.test_graph_anns(graph, query_repository, rolling_update_gt[batch_id], repeat=1, k=10)
+    print("len is ", len(rolling_update_gt))
     batch_size = base_size // 100
+    recalls = []
+    search_latencies = []
+    def test_rolling_update(batch_id):
+        return deglib.benchmark.test_graph_anns(graph, query_repository, rolling_update_gt[batch_id], repeat=1, k=10, start_label=batch_id * batch_size, eps_parameter=eps_parameter)
+    #time.sleep(15)
+    #print("Pausing builder")
+    #builder.pause()
     test_rolling_update(0)
-    for batch_id in range(100):
+    #builder.resume()
+    for batch_id in range(99):
         print("Batch ", batch_id)
         duration = stopwatch.get_elapsed_time_micro() / 1000000
         print("Actual memory usage: {} Mb after building the graph in {:.4} secs".format(
             get_current_rss_mb(), float(duration)
         ))
         for j in range(batch_size):
-            builder.remove_entry(batch_id * 100 + j)
-            add_entry(batch_id * 100 + j + base_size)
-        test_rolling_update(batch_id + 1)
+            builder.remove_entry(batch_id * batch_size + j)
+            #sw = StopWatch()
+            add_entry(batch_id * batch_size + j + base_size)
+            #builder.build(None, False)
+            #print("Insert latency (us) ", sw.get_elapsed_time_micro())
+        #builder.pause()
+        #print("Finished batch building")
+        recall, search_latency_us = test_rolling_update(batch_id + 1)
+        recalls.append(recall)
+        search_latencies.append(search_latency_us)
+        #builder.resume()
     builder.stop()
+    with open(f'{dataset_name}_{experiment_size}_{eps_parameter}_deg_recall.json', 'w') as f:
+        json.dump({"eps": eps_parameter, "recall": recalls, "latencies": search_latencies}, f)
+
+
 
     # store the graph
     # graph.save_graph(graph_file)

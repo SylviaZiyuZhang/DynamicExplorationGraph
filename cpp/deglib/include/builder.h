@@ -13,7 +13,7 @@
 
 #include "analysis.h"
 #include "graph.h"
-
+using namespace std::chrono_literals;
 namespace deglib::builder
 {
 
@@ -86,26 +86,14 @@ class EvenRegularGraphBuilder {
     std::atomic<uint64_t> manipulation_counter_;
     std::deque<BuilderAddTask> new_entry_queue_;
     std::queue<BuilderRemoveTask> remove_entry_queue_;
+    std::thread builder_thread_;
 
     // should the build loop run until the stop method is called
     bool stop_building_ = false;
+    bool pause_building_ = false;
+    BuilderStatus status_ = {};
 
   public:
-
-    EvenRegularGraphBuilder(deglib::graph::MutableGraph& graph, std::mt19937& rnd, 
-                            const uint8_t extend_k, const float extend_eps,  
-                            const uint8_t improve_k, const float improve_eps, 
-                            const uint8_t max_path_length = 10, const uint32_t swap_tries = 3, const uint32_t additional_swap_tries = 3) 
-      : extend_k_(extend_k),
-        extend_eps_(extend_eps),  
-        improve_k_(improve_k), 
-        improve_eps_(improve_eps), 
-        max_path_length_(max_path_length), 
-        swap_tries_(swap_tries), 
-        additional_swap_tries_(additional_swap_tries),
-        rnd_(rnd),  
-        graph_(graph) {
-    }
 
     EvenRegularGraphBuilder(deglib::graph::MutableGraph& graph, std::mt19937& rnd, const uint32_t swaps) 
       : EvenRegularGraphBuilder(graph, rnd, 
@@ -884,7 +872,6 @@ class EvenRegularGraphBuilder {
      * Build the graph. This could be run on a separate thread in an infinite loop.
      */
     auto& build(std::function<void(deglib::builder::BuilderStatus&)> callback, const bool infinite = false) {
-      auto status = BuilderStatus{};
       const auto edge_per_vertex = this->graph_.getEdgesPerVertex();
 
       // run a loop to add, delete and improve the graph
@@ -903,11 +890,11 @@ class EvenRegularGraphBuilder {
 
           if(add_task_manipulation_index < del_task_manipulation_index) {
             extendGraph(this->new_entry_queue_.front());
-            status.added++;
+            status_.added++;
             this->new_entry_queue_.pop_front();
           } else {
             reduceGraph(this->remove_entry_queue_.front());
-            status.deleted++;
+            status_.deleted++;
             this->remove_entry_queue_.pop();
           }
         }
@@ -915,17 +902,20 @@ class EvenRegularGraphBuilder {
         //try to improve the graph
         if(graph_.size() > edge_per_vertex && improve_k_ > 0) {
           for (int64_t swap_try = 0; swap_try < int64_t(this->swap_tries_); swap_try++) {
-            status.tries++;
+            status_.tries++;
 
             if(this->improveEdges()) {
-              status.improved++;
+              status_.improved++;
               swap_try -= this->additional_swap_tries_;
             }
           }
         }
         
-        status.step++;
-        callback(status);
+        status_.step++;
+        callback(status_);
+        while (this->pause_building_) {
+          std::this_thread::sleep_for(200ms);
+        }
       }
       while(this->stop_building_ == false && (infinite || this->new_entry_queue_.size() > 0 || this->remove_entry_queue_.size() > 0));
 
@@ -938,6 +928,30 @@ class EvenRegularGraphBuilder {
      */
     void stop() {
       this->stop_building_ = true;
+      builder_thread_.join();
+    }
+
+    void pause() {
+      this->pause_building_ = true;
+    }
+    void resume() {
+      this->pause_building_ = false;
+    }
+
+    EvenRegularGraphBuilder(deglib::graph::MutableGraph& graph, std::mt19937& rnd, 
+                            const uint8_t extend_k, const float extend_eps,  
+                            const uint8_t improve_k, const float improve_eps, 
+                            const uint8_t max_path_length = 10, const uint32_t swap_tries = 3, const uint32_t additional_swap_tries = 3) 
+      : extend_k_(extend_k),
+        extend_eps_(extend_eps),  
+        improve_k_(improve_k), 
+        improve_eps_(improve_eps), 
+        max_path_length_(max_path_length), 
+        swap_tries_(swap_tries), 
+        additional_swap_tries_(additional_swap_tries),
+        rnd_(rnd),  
+        graph_(graph) {
+          builder_thread_ = std::thread(&EvenRegularGraphBuilder::build, this, [] (deglib::builder::BuilderStatus&) {}, true);
     }
 };
 

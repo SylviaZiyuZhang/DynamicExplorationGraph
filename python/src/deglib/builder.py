@@ -141,6 +141,12 @@ class EvenRegularGraphBuilder:
 
     def stop(self):
         self.builder_cpp.stop()
+    
+    def pause(self):
+        self.builder_cpp.pause()
+    
+    def resume(self):
+        self.builder_cpp.resume()
 
     def __repr__(self):
         return 'EvenRegularGraphBuilder(vertices_added={})'.format(self.graph.size())

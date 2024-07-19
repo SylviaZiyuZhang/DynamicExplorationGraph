@@ -93,11 +93,11 @@ class SearchGraph(ABC):
         """
         raise NotImplementedError()
 
-    def get_entry_vertex_indices(self) -> List[int]:
+    def get_entry_vertex_indices(self, start_label: int) -> List[int]:
         """
         Creates a list of internal indices that can be used as starting point for an anns search.
         """
-        return [self.get_internal_index(0)]
+        return [self.get_internal_index(start_label)]
 
     @abstractmethod
     def has_path(self, entry_vertex_indices: List[int], to_vertex: int, eps: float, k: int) -> List[ObjectDistance]:
@@ -205,7 +205,7 @@ class ReadOnlyGraph(SearchGraph):
         """
         query = assure_array(query, 'query', np.float32)
         if entry_vertex_indices is None:
-            entry_vertex_indices = self.get_entry_vertex_indices()
+            entry_vertex_indices = self.get_entry_vertex_indices(0)
         return ResultSet(self.graph_cpp.search(entry_vertex_indices, query, eps, k, max_distance_computation_count))
 
     def has_path(self, entry_vertex_indices: List[int], to_vertex: int, eps: float, k: int) -> List[ObjectDistance]:
@@ -219,11 +219,11 @@ class ReadOnlyGraph(SearchGraph):
         """
         return [ObjectDistance(od) for od in self.graph_cpp.has_path(entry_vertex_indices, to_vertex, eps, k)]
 
-    def get_entry_vertex_indices(self) -> List[int]:
+    def get_entry_vertex_indices(self, start_label) -> List[int]:
         """
         Creates a list of internal indices that can be used as starting point for an anns search.
         """
-        return self.graph_cpp.get_entry_vertex_indices()
+        return self.graph_cpp.get_entry_vertex_indices(start_label)
 
     def get_external_label(self, internal_index: int) -> int:
         """
@@ -460,11 +460,11 @@ class SizeBoundedGraph(MutableGraph):
         """
         return [ObjectDistance(od) for od in self.graph_cpp.has_path(entry_vertex_indices, to_vertex, eps, k)]
 
-    def get_entry_vertex_indices(self) -> List[int]:
+    def get_entry_vertex_indices(self, start_label: int) -> List[int]:
         """
         Creates a list of internal indices that can be used as starting point for an anns search.
         """
-        return self.graph_cpp.get_entry_vertex_indices()
+        return self.graph_cpp.get_entry_vertex_indices(start_label)
 
     def get_external_label(self, internal_index: int) -> int:
         """
@@ -613,7 +613,7 @@ class SizeBoundedGraph(MutableGraph):
         """
         query = assure_array(query, 'query', np.float32)
         if entry_vertex_indices is None:
-            entry_vertex_indices = self.get_entry_vertex_indices()
+            entry_vertex_indices = self.get_entry_vertex_indices(0)
         return ResultSet(self.graph_cpp.search(entry_vertex_indices, query, eps, k, max_distance_computation_count))
 
     def explore(self, entry_vertex_index: int, k: int, max_distance_computation_count: int) -> ResultSet:

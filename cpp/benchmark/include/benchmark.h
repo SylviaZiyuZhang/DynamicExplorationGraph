@@ -91,16 +91,18 @@ static float test_approx_explore(const deglib::search::SearchGraph& graph, const
     return 1.0f * correct / total;
 }
 
-static void test_graph_anns(const deglib::search::SearchGraph& graph, const deglib::FeatureRepository& query_repository, const uint32_t* ground_truth, const uint32_t ground_truth_dims, const uint32_t repeat, const uint32_t k)
+static void test_graph_anns(const deglib::search::SearchGraph& graph, const deglib::FeatureRepository& query_repository, const uint32_t* ground_truth, const uint32_t ground_truth_dims, const uint32_t repeat, const uint32_t k, const uint32_t starting_label=0, const uint32_t range=5000)
 {
     // find vertex closest to the average feature vector
+    std::cout << "Testing graph ans" << std::endl;
     uint32_t entry_vertex_id;
     {
         const auto feature_dims = graph.getFeatureSpace().dim();
         const auto graph_size = (uint32_t) graph.size();
         auto avg_fv = std::vector<float>(feature_dims);
-        for (uint32_t i = 0; i < graph_size; i++) {
-            auto fv = reinterpret_cast<const float*>(graph.getFeatureVector(i));
+        for (uint32_t i = starting_label; i < starting_label + range; i++) {
+            std::cout << "calc entry " << i << std::endl;
+            auto fv = reinterpret_cast<const float*>(graph.getFeatureVector(graph.getInternalIndex(i)));
             for (size_t dim = 0; dim < feature_dims; dim++) 
                 avg_fv[dim] += fv[dim];
         }
@@ -112,6 +114,7 @@ static void test_graph_anns(const deglib::search::SearchGraph& graph, const degl
         auto result_queue = graph.search(seed, reinterpret_cast<const std::byte*>(avg_fv.data()), 0.1f, 30);
         entry_vertex_id = result_queue.top().getInternalIndex();
     }
+    fmt::print("Found entry")
 
     // reproduceable entry point for the graph search
     // const auto entry_vertex_indices = std::vector<uint32_t> { graph.getInternalIndex(entry_vertex_id) };

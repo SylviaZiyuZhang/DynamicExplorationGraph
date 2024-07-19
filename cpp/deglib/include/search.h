@@ -106,8 +106,8 @@ class SearchGraph
     virtual const bool hasVertex(const uint32_t external_label) const = 0;
     virtual const bool hasEdge(const uint32_t internal_index, const uint32_t neighbor_index) const = 0;
 
-    const std::vector<uint32_t> getEntryVertexIndices() const {
-      return std::vector<uint32_t> { getInternalIndex(0) };
+    const std::vector<uint32_t> getEntryVertexIndices(const uint32_t starting_label) const {
+      return std::vector<uint32_t> { getInternalIndex(starting_label) };
     }
 
     /**
@@ -127,7 +127,7 @@ class SearchGraph
      * The starting point of the search is determined be the graph
      */
     deglib::search::ResultSet search(const std::byte* query, const float eps, const uint32_t k, const uint32_t max_distance_computation_count = 0) const {
-      return search(getEntryVertexIndices(), query, eps,  k, max_distance_computation_count);
+      return search(getEntryVertexIndices(0), query, eps,  k, max_distance_computation_count);
     };
 
     /**
